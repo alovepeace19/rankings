@@ -24,8 +24,8 @@
             z-index: 1000;
         }
         .drop-target {
-            background-color: rgba(0, 0, 0, 0.1);
-            outline: 2px dashed #333;
+            background-color: rgba(0, 0, 0, 0.1) !important;
+            outline: 2px dashed #000 !important;
         }
         /* 精确匹配图片配色 */
         .bg-tier-red { background-color: #ff3131; }
@@ -126,6 +126,7 @@
                 <button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 font-bold ml-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
             `;
 
+            // 桌面拖拽
             div.ondragstart = (e) => {
                 draggedElement = div;
                 setTimeout(() => div.classList.add('dragging'), 0);
@@ -136,6 +137,7 @@
                 draggedElement = null;
             };
 
+            // 移动端触摸
             div.addEventListener('touchstart', handleTouchStart, { passive: false });
             div.addEventListener('touchmove', handleTouchMove, { passive: false });
             div.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -172,7 +174,8 @@
                 element: this,
                 offsetX: touch.clientX - rect.left,
                 offsetY: touch.clientY - rect.top,
-                originalParent: this.parentElement
+                originalParent: this.parentElement,
+                originalNextSibling: this.nextSibling
             };
             this.classList.add('dragging');
         }
@@ -182,12 +185,18 @@
             e.preventDefault(); 
             const touch = e.touches[0];
             
+            // 移动视觉元素
             this.style.position = 'fixed';
             this.style.left = (touch.clientX - touchData.offsetX) + 'px';
             this.style.top = (touch.clientY - touchData.offsetY) + 'px';
             this.style.zIndex = '1000';
+            this.style.width = this.offsetWidth + 'px'; // 保持宽度
 
+            // 寻找落点，必须先临时隐藏自己或禁用指针事件
+            this.style.pointerEvents = 'none';
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            this.style.pointerEvents = 'auto';
+
             const dropTarget = elementBelow?.closest('.tier-row');
             
             document.querySelectorAll('.tier-row').forEach(r => r.classList.remove('drop-target'));
@@ -197,20 +206,32 @@
         function handleTouchEnd(e) {
             if (!touchData) return;
             const touch = e.changedTouches[0];
+
+            // 最终检测落点
+            this.style.pointerEvents = 'none';
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            this.style.pointerEvents = 'auto';
+            
             const dropTarget = elementBelow?.closest('.tier-row');
 
+            // 重置样式
             this.style.position = '';
             this.style.left = '';
             this.style.top = '';
             this.style.zIndex = '';
+            this.style.width = '';
             this.classList.remove('dragging');
+            document.querySelectorAll('.tier-row').forEach(r => r.classList.remove('drop-target'));
 
             if (dropTarget) {
                 dropTarget.appendChild(this);
-                dropTarget.classList.remove('drop-target');
             } else {
-                touchData.originalParent.appendChild(this);
+                // 如果没投进，放回原处
+                if (touchData.originalNextSibling) {
+                    touchData.originalParent.insertBefore(this, touchData.originalNextSibling);
+                } else {
+                    touchData.originalParent.appendChild(this);
+                }
             }
 
             touchData = null;
