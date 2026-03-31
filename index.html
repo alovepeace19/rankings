@@ -137,11 +137,12 @@
             const id = 'item-' + Math.random().toString(36).substr(2, 9);
             const div = document.createElement('div');
             div.id = id;
-            div.className = 'item-card bg-white text-black border-2 border-black font-black text-[10px] sm:text-base aspect-square w-[22.5%] sm:w-24 flex items-center justify-center text-center group relative shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden shrink-0';
+            // 手機版字體從 text-[10px] 調大至 text-[13px]
+            div.className = 'item-card bg-white text-black border-2 border-black font-black text-[13px] sm:text-base aspect-square w-[22.5%] sm:w-24 flex items-center justify-center text-center group relative shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden shrink-0';
             div.draggable = true;
             div.innerHTML = `
-                <span class="p-1 break-all leading-tight">${text}</span>
-                <button onclick="handleItemAction(this.parentElement)" class="absolute top-0 right-0 text-red-500 hover:text-red-700 font-bold p-1 text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">×</button>
+                <span class="p-1 break-all leading-none">${text}</span>
+                <button onclick="handleItemAction(this.parentElement)" class="absolute top-0 right-0 text-red-500 hover:text-red-700 font-bold p-1 text-[11px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">×</button>
             `;
 
             // 桌面端事件
