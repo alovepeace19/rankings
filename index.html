@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>连麦音色排行榜</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -13,21 +13,23 @@
         .item-card {
             cursor: grab;
             user-select: none;
-            touch-action: none;
+            /* 關鍵：防止手機瀏覽器觸發滾動，讓拖拽更流暢 */
+            touch-action: none; 
         }
         .item-card:active {
             cursor: grabbing;
         }
         .dragging {
-            opacity: 0.5;
-            transform: scale(0.95);
-            z-index: 1000;
+            opacity: 0.6;
+            transform: scale(1.05);
+            z-index: 9999 !important;
+            pointer-events: none; /* 拖拽中不接收事件，讓下方的 elementFromPoint 有效 */
         }
         .drop-target {
-            background-color: rgba(0, 0, 0, 0.1) !important;
-            outline: 2px dashed #000 !important;
+            background-color: rgba(0, 0, 0, 0.15) !important;
+            outline: 3px dashed #000 !important;
         }
-        /* 精确匹配图片配色 */
+        /* 精確匹配圖片配色 */
         .bg-tier-red { background-color: #ff3131; }
         .bg-tier-orange { background-color: #ffbd31; }
         .bg-tier-yellow { background-color: #ffff00; }
@@ -36,7 +38,7 @@
         .bg-content-grey { background-color: #b3b3b3; }
     </style>
 </head>
-<body class="bg-gray-200 text-gray-900 min-h-screen font-sans">
+<body class="bg-gray-200 text-gray-900 min-h-screen font-sans overflow-x-hidden">
 
     <div class="max-w-4xl mx-auto p-4 pb-24">
         <header class="mb-6 text-center">
@@ -45,7 +47,7 @@
             <p class="text-gray-500 text-xs mt-1 font-medium">拖拽</p>
         </header>
 
-        <!-- 添加项目部分（已移至排行榜上方） -->
+        <!-- 添加項目部分 -->
         <div class="bg-white p-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-8">
             <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
                 添加待评价音色
@@ -56,11 +58,11 @@
             </div>
 
             <div id="pool" class="tier-row flex flex-wrap gap-3 p-4 bg-gray-300 border-2 border-black min-h-[120px]" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
-                <!-- 待选项目 -->
+                <!-- 待選項目 -->
             </div>
         </div>
 
-        <!-- 排行榜等级容器 -->
+        <!-- 排行榜等級容器 -->
         <div id="tier-container" class="mb-8 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <!-- 夯 -->
             <div class="flex border-b-2 border-black last:border-b-0" data-tier="夯">
@@ -100,6 +102,7 @@
 
     <script>
         let draggedElement = null;
+        let touchData = null;
 
         function addItem() {
             const input = document.getElementById('item-input');
@@ -126,7 +129,7 @@
                 <button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 font-bold ml-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
             `;
 
-            // 桌面拖拽
+            // 桌面端事件
             div.ondragstart = (e) => {
                 draggedElement = div;
                 setTimeout(() => div.classList.add('dragging'), 0);
@@ -137,7 +140,7 @@
                 draggedElement = null;
             };
 
-            // 移动端触摸
+            // 移动端事件
             div.addEventListener('touchstart', handleTouchStart, { passive: false });
             div.addEventListener('touchmove', handleTouchMove, { passive: false });
             div.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -165,38 +168,43 @@
             }
         }
 
-        let touchData = null;
-
+        // 手機觸摸邏輯
         function handleTouchStart(e) {
             const touch = e.touches[0];
             const rect = this.getBoundingClientRect();
+            
             touchData = {
                 element: this,
                 offsetX: touch.clientX - rect.left,
                 offsetY: touch.clientY - rect.top,
                 originalParent: this.parentElement,
-                originalNextSibling: this.nextSibling
+                originalNextSibling: this.nextSibling,
+                width: rect.width,
+                height: rect.height
             };
-            this.classList.add('dragging');
+            
+            // 延遲一點點設置樣式，防止點擊誤觸
+            setTimeout(() => {
+                if (!touchData) return;
+                this.classList.add('dragging');
+                this.style.width = touchData.width + 'px';
+                this.style.height = touchData.height + 'px';
+                this.style.position = 'fixed';
+                // 移動到 body 避免被父組件裁剪
+                document.body.appendChild(this);
+                updatePosition(touch.clientX, touch.clientY);
+            }, 50);
         }
 
         function handleTouchMove(e) {
             if (!touchData) return;
-            e.preventDefault(); 
+            e.preventDefault(); // 禁止頁面滾動
             const touch = e.touches[0];
             
-            // 移动视觉元素
-            this.style.position = 'fixed';
-            this.style.left = (touch.clientX - touchData.offsetX) + 'px';
-            this.style.top = (touch.clientY - touchData.offsetY) + 'px';
-            this.style.zIndex = '1000';
-            this.style.width = this.offsetWidth + 'px'; // 保持宽度
+            updatePosition(touch.clientX, touch.clientY);
 
-            // 寻找落点，必须先临时隐藏自己或禁用指针事件
-            this.style.pointerEvents = 'none';
+            // 檢測下方目標
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-            this.style.pointerEvents = 'auto';
-
             const dropTarget = elementBelow?.closest('.tier-row');
             
             document.querySelectorAll('.tier-row').forEach(r => r.classList.remove('drop-target'));
@@ -207,26 +215,24 @@
             if (!touchData) return;
             const touch = e.changedTouches[0];
 
-            // 最终检测落点
-            this.style.pointerEvents = 'none';
+            // 最後一次檢測落點
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-            this.style.pointerEvents = 'auto';
-            
             const dropTarget = elementBelow?.closest('.tier-row');
 
-            // 重置样式
+            // 重置樣式
+            this.classList.remove('dragging');
             this.style.position = '';
             this.style.left = '';
             this.style.top = '';
-            this.style.zIndex = '';
             this.style.width = '';
-            this.classList.remove('dragging');
+            this.style.height = '';
+            this.style.zIndex = '';
             document.querySelectorAll('.tier-row').forEach(r => r.classList.remove('drop-target'));
 
             if (dropTarget) {
                 dropTarget.appendChild(this);
             } else {
-                // 如果没投进，放回原处
+                // 放回原處
                 if (touchData.originalNextSibling) {
                     touchData.originalParent.insertBefore(this, touchData.originalNextSibling);
                 } else {
@@ -235,6 +241,12 @@
             }
 
             touchData = null;
+        }
+
+        function updatePosition(clientX, clientY) {
+            if (!touchData) return;
+            touchData.element.style.left = (clientX - touchData.offsetX) + 'px';
+            touchData.element.style.top = (clientY - touchData.offsetY) + 'px';
         }
 
         function showToast(msg) {
