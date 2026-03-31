@@ -48,7 +48,7 @@
         </header>
 
         <!-- 添加項目部分 -->
-        <div class="bg-white p-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-8">
+        <div class="bg-white p-4 sm:p-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-8">
             <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
                 添加待评价音色
             </h2>
@@ -57,8 +57,9 @@
                 <button onclick="addItem()" class="bg-black hover:bg-gray-800 text-white px-6 py-2 font-bold transition-colors border-2 border-black">添加</button>
             </div>
 
-            <div id="pool" class="tier-row flex flex-wrap gap-3 p-4 bg-gray-300 border-2 border-black min-h-[120px]" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
-                <!-- 待選項目 -->
+            <!-- 手機版 grid-cols-3，大螢幕恢復 flex-wrap -->
+            <div id="pool" class="tier-row grid grid-cols-3 gap-2 p-2 sm:flex sm:flex-wrap sm:gap-3 sm:p-4 bg-gray-300 border-2 border-black min-h-[120px]" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                <!-- 待選項目將在此生成 -->
             </div>
         </div>
 
@@ -122,11 +123,12 @@
             const id = 'item-' + Math.random().toString(36).substr(2, 9);
             const div = document.createElement('div');
             div.id = id;
-            div.className = 'item-card bg-white text-black px-4 py-2 border-2 border-black font-black text-sm sm:text-base whitespace-nowrap h-fit flex items-center justify-between gap-2 group relative shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]';
+            // 針對 Grid 布局調整樣式，手機端 px-1 防止撐開，text-center 居中
+            div.className = 'item-card bg-white text-black px-1 py-2 sm:px-4 border-2 border-black font-black text-xs sm:text-base h-full flex items-center justify-center text-center group relative shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] sm:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden';
             div.draggable = true;
             div.innerHTML = `
-                <span>${text}</span>
-                <button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 font-bold ml-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                <span class="break-all">${text}</span>
+                <button onclick="this.parentElement.remove()" class="absolute top-0 right-0 text-red-500 hover:text-red-700 font-bold p-0.5 text-[8px] opacity-0 group-hover:opacity-100 transition-opacity">×</button>
             `;
 
             // 桌面端事件
@@ -164,6 +166,11 @@
             const target = e.target.closest('.tier-row');
             if (target && draggedElement) {
                 target.classList.remove('drop-target');
+                // 如果是移動到排行榜行，移除 grid 適配樣式，恢復原本彈性布局樣式
+                if (target.id !== 'pool') {
+                    draggedElement.classList.add('whitespace-nowrap');
+                    draggedElement.classList.remove('h-full');
+                }
                 target.appendChild(draggedElement);
             }
         }
@@ -183,14 +190,12 @@
                 height: rect.height
             };
             
-            // 延遲一點點設置樣式，防止點擊誤觸
             setTimeout(() => {
                 if (!touchData) return;
                 this.classList.add('dragging');
                 this.style.width = touchData.width + 'px';
                 this.style.height = touchData.height + 'px';
                 this.style.position = 'fixed';
-                // 移動到 body 避免被父組件裁剪
                 document.body.appendChild(this);
                 updatePosition(touch.clientX, touch.clientY);
             }, 50);
@@ -198,12 +203,11 @@
 
         function handleTouchMove(e) {
             if (!touchData) return;
-            e.preventDefault(); // 禁止頁面滾動
+            e.preventDefault(); 
             const touch = e.touches[0];
             
             updatePosition(touch.clientX, touch.clientY);
 
-            // 檢測下方目標
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
             const dropTarget = elementBelow?.closest('.tier-row');
             
@@ -215,7 +219,6 @@
             if (!touchData) return;
             const touch = e.changedTouches[0];
 
-            // 最後一次檢測落點
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
             const dropTarget = elementBelow?.closest('.tier-row');
 
@@ -230,9 +233,16 @@
             document.querySelectorAll('.tier-row').forEach(r => r.classList.remove('drop-target'));
 
             if (dropTarget) {
+                // 如果是移動到排行榜，適配為彈性布局寬度
+                if (dropTarget.id !== 'pool') {
+                    this.classList.add('whitespace-nowrap');
+                    this.classList.remove('h-full');
+                } else {
+                    this.classList.remove('whitespace-nowrap');
+                    this.classList.add('h-full');
+                }
                 dropTarget.appendChild(this);
             } else {
-                // 放回原處
                 if (touchData.originalNextSibling) {
                     touchData.originalParent.insertBefore(this, touchData.originalNextSibling);
                 } else {
