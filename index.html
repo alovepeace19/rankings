@@ -59,7 +59,7 @@
                 <button onclick="addItem()" class="bg-black hover:bg-gray-800 text-white px-6 py-2 font-bold transition-colors border-2 border-black">添加</button>
             </div>
 
-            <!-- 待選池：使用 flex 並配合固定寬度來實現正方形 -->
+            <!-- 待選池 -->
             <div id="pool" class="tier-row flex flex-wrap content-start gap-2 p-2 bg-gray-300 border-2 border-black min-h-[100px]" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
                 <!-- 待選項目將在此生成 -->
             </div>
@@ -121,16 +121,27 @@
             showToast(`已添加 "${text}"`);
         }
 
+        // 處理刪除或回到待選池的邏輯
+        function handleItemAction(el) {
+            const pool = document.getElementById('pool');
+            if (el.parentElement === pool) {
+                // 如果已在待選池，則徹底刪除
+                el.remove();
+            } else {
+                // 如果在排行榜中，則移回待選池
+                pool.appendChild(el);
+            }
+        }
+
         function createItemElement(text) {
             const id = 'item-' + Math.random().toString(36).substr(2, 9);
             const div = document.createElement('div');
             div.id = id;
-            // 核心樣式：aspect-square 確保正方形，w-[22%] 確保手機版一行約4個，sm:w-24 確保大螢幕適配
             div.className = 'item-card bg-white text-black border-2 border-black font-black text-[10px] sm:text-base aspect-square w-[22.5%] sm:w-24 flex items-center justify-center text-center group relative shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden shrink-0';
             div.draggable = true;
             div.innerHTML = `
                 <span class="p-1 break-all leading-tight">${text}</span>
-                <button onclick="this.parentElement.remove()" class="absolute top-0 right-0 text-red-500 hover:text-red-700 font-bold p-0.5 text-[8px] opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                <button onclick="handleItemAction(this.parentElement)" class="absolute top-0 right-0 text-red-500 hover:text-red-700 font-bold p-1 text-[10px] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">×</button>
             `;
 
             // 桌面端事件
@@ -168,16 +179,16 @@
             const target = e.target.closest('.tier-row');
             if (target && draggedElement) {
                 target.classList.remove('drop-target');
-                // 始終保持正方形樣式，不再切換長條狀
                 target.appendChild(draggedElement);
             }
         }
 
-        // 手機觸摸邏輯
         function handleTouchStart(e) {
             const touch = e.touches[0];
+            // 排除點擊按鈕的情況
+            if (e.target.tagName === 'BUTTON') return;
+
             const rect = this.getBoundingClientRect();
-            
             touchData = {
                 element: this,
                 offsetX: touch.clientX - rect.left,
@@ -203,7 +214,6 @@
             if (!touchData) return;
             e.preventDefault(); 
             const touch = e.touches[0];
-            
             updatePosition(touch.clientX, touch.clientY);
 
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -216,11 +226,9 @@
         function handleTouchEnd(e) {
             if (!touchData) return;
             const touch = e.changedTouches[0];
-
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
             const dropTarget = elementBelow?.closest('.tier-row');
 
-            // 重置樣式
             this.classList.remove('dragging');
             this.style.position = '';
             this.style.left = '';
@@ -239,7 +247,6 @@
                     touchData.originalParent.appendChild(this);
                 }
             }
-
             touchData = null;
         }
 
@@ -253,9 +260,7 @@
             const toast = document.getElementById('toast');
             toast.innerText = msg;
             toast.style.opacity = '1';
-            setTimeout(() => {
-                toast.style.opacity = '0';
-            }, 2000);
+            setTimeout(() => { toast.style.opacity = '0'; }, 2000);
         }
 
         window.onload = () => {
